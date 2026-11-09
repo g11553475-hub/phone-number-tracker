@@ -1,0 +1,8 @@
+{
+  "name": "locateme-consent-location-sharing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Consent-based location sharing website with frontend and backend",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"}
+}
