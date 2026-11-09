@@ -24,15 +24,15 @@ function requireUser(req,res){const u=getUser(req);if(!u)send(res,401,{error:'Pl
 async function route(req,res){
  const url=new URL(req.url,'http://localhost'); const p=url.pathname;
  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'same-origin','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS'});return res.end();}
- if(req.method==='GET'&&p==='/api/health')return send(res,200,{ok:true,service:'LocateMe API'});
+ if(req.method==='GET'&&p==='/api/health')return send(res,200,{ok:true,service:'LocateMe API'});\n if(req.method==='POST'&&p==='/api/lookup'){const b=await readBody(req),digits=String(b.phone||'').replace(/\\D/g,'');if(digits.length<7||digits.length>15)return send(res,400,{error:'Enter a valid mobile number'});const u=db.users.find(x=>String(x.phone||'').replace(/\\D/g,'')===digits);if(!u||!u.discoverable||!u.sharing||!u.location||!Number.isFinite(Number(u.age)))return send(res,404,{error:'No currently shared profile found for this number. The owner must register, consent to discovery and enable GPS sharing.'});return send(res,200,{user:{name:u.name,age:u.age},location:u.location});}
  if(req.method==='POST'&&p==='/api/register'){
-  const b=await readBody(req),name=String(b.name||'').trim(),phone=String(b.phone||'').trim(),password=String(b.password||'');
+  const b=await readBody(req),name=String(b.name||'').trim(),phone=String(b.phone||'').trim(),password=String(b.password||''),age=Number(b.age);
   if(name.length<2||name.length>60)return send(res,400,{error:'Name must be 2–60 characters'});
   if(!/^\+?[0-9 ()-]{7,20}$/.test(phone))return send(res,400,{error:'Enter a valid phone number'});
-  if(password.length<8||password.length>128)return send(res,400,{error:'Password must be at least 8 characters'});
+  if(!Number.isInteger(age)||age<18||age>120)return send(res,400,{error:'Age must be between 18 and 120'});\n  if(b.discoverable!==true)return send(res,400,{error:'Consent is required to appear in mobile number searches'});\n  if(password.length<8||password.length>128)return send(res,400,{error:'Password must be at least 8 characters'});
   if(db.users.some(u=>u.phone===phone))return send(res,409,{error:'An account with this phone number already exists'});
   const salt=crypto.randomBytes(16).toString('hex'),pass=await scrypt(password,salt,64);
-  const u={id:crypto.randomUUID(),name,phone,salt,password:pass.toString('hex'),sharing:false,location:null,created:Date.now()};db.users.push(u);const raw=token();db.sessions.push({hash:hashToken(raw),userId:u.id,expires:Date.now()+30*86400000});save();return send(res,201,{token:raw,user:safeUser(u)});
+  const u={id:crypto.randomUUID(),name,phone,salt,password:pass.toString('hex'),age,discoverable:true,sharing:false,location:null,created:Date.now()};db.users.push(u);const raw=token();db.sessions.push({hash:hashToken(raw),userId:u.id,expires:Date.now()+30*86400000});save();return send(res,201,{token:raw,user:safeUser(u)});
  }
  if(req.method==='POST'&&p==='/api/login'){
   const b=await readBody(req),phone=String(b.phone||'').trim(),password=String(b.password||''),u=db.users.find(x=>x.phone===phone);
